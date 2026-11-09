@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseServerHost, resolveServerPreset, type ForkServerConfiguration } from './serverPreset'
+import { parseServerHost, requireOfficialMinecraftUser, resolveServerPreset, type ForkServerConfiguration } from './serverPreset'
 
 const base: ForkServerConfiguration = {
   modpack: { instanceId: 'Fabric Test' },
@@ -26,5 +26,12 @@ describe('P0-05 fork server preset', () => {
   it('refuses to launch with a missing server or disabled official auth', () => {
     expect(() => resolveServerPreset({ ...base, server: { address: null } })).toThrow(/not configured/)
     expect(() => resolveServerPreset({ ...base, guardrails: { requireMicrosoftAuthentication: false } })).toThrow(/authentication/)
+  })\n  it('only permits a selected, non-invalidated Microsoft Minecraft account', () => {
+    const valid = { id: 'test-user', authority: 'x://microsoft', invalidated: false, selectedProfile: 'profile-1', profiles: { 'profile-1': {} } }
+    expect(requireOfficialMinecraftUser(valid)).toBe('test-user')
+    expect(() => requireOfficialMinecraftUser({ ...valid, authority: 'x://offline' })).toThrow(/Microsoft/)
+    expect(() => requireOfficialMinecraftUser({ ...valid, authority: 'https://third-party.example' })).toThrow(/Microsoft/)
+    expect(() => requireOfficialMinecraftUser({ ...valid, invalidated: true })).toThrow(/reauthenticated/)
+    expect(() => requireOfficialMinecraftUser({ ...valid, selectedProfile: '' })).toThrow(/reauthenticated/)
   })
 })
