@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "id": "p0-fabric-smoke",
+  "name": "P0 Fabric Client Smoke Pack",
+  "packVersion": "0.1.0",
+  "minecraft": "1.21.1",
+  "fabricLoader": "0.16.14",
+  "resourcePackFormat": 34,
+  "note": "Test-only pack with an original metadata-only Fabric client mod and empty resourcepack. No Mojang game binaries."
+}
