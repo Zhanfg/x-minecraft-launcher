@@ -39,3 +39,19 @@ export function resolveServerPreset(config: ForkServerConfiguration, requestedIn
   if (!address) throw new Error('Fork server address is not configured in fork/config/project.json')
   return { instance: name, server: parseServerHost(address) }
 }
+
+
+/** Reject offline and third-party accounts for a server that expects an official login. */
+export function requireOfficialMinecraftUser(user: {
+  id: string
+  authority: string
+  invalidated: boolean
+  selectedProfile: string
+  profiles: Record<string, unknown>
+}): string {
+  if (user.authority !== 'x://microsoft') throw new Error('A Microsoft Minecraft account is required for fork server launch')
+  if (user.invalidated || !user.selectedProfile || !user.profiles[user.selectedProfile]) {
+    throw new Error('The Microsoft Minecraft profile must be selected and reauthenticated')
+  }
+  return user.id
+}
