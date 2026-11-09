@@ -26,7 +26,8 @@ describe('P0-05 fork server preset', () => {
   it('refuses to launch with a missing server or disabled official auth', () => {
     expect(() => resolveServerPreset({ ...base, server: { address: null } })).toThrow(/not configured/)
     expect(() => resolveServerPreset({ ...base, guardrails: { requireMicrosoftAuthentication: false } })).toThrow(/authentication/)
-  })\n  it('only permits a selected, non-invalidated Microsoft Minecraft account', () => {
+  })
+  it('only permits a selected, non-invalidated Microsoft Minecraft account', () => {
     const valid = { id: 'test-user', authority: 'x://microsoft', invalidated: false, selectedProfile: 'profile-1', profiles: { 'profile-1': {} } }
     expect(requireOfficialMinecraftUser(valid)).toBe('test-user')
     expect(() => requireOfficialMinecraftUser({ ...valid, authority: 'x://offline' })).toThrow(/Microsoft/)
