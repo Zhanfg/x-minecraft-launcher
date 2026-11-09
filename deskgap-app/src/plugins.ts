@@ -1,3 +1,4 @@
+import { pluginForkPreset } from '../../xmcl-runtime/fork/pluginForkPreset'
 import { pluginAgentProtocol } from '@xmcl/runtime/agent'
 import type { LauncherAppPlugin } from '@xmcl/runtime/app'
 import { pluginApiFallback } from '@xmcl/runtime/app/pluginApiFallback'
@@ -50,6 +51,7 @@ const pluginLocalization: LauncherAppPlugin = async (app) => {
 export const plugins: LauncherAppPlugin[] = [
   pluginAgentProtocol,
   pluginCommandHost({ services: definedServices }),
+  pluginForkPreset,
   pluginCli,
   pluginApiFallback,
   pluginResourceWorker,

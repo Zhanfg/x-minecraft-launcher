@@ -1,3 +1,4 @@
+import { pluginForkPreset } from '../../xmcl-runtime/fork/pluginForkPreset'
 import { pluginAutoUpdate } from './pluginAutoUpdate'
 import { pluginAgentDocuments } from './pluginAgentDocuments'
 import { pluginIconProtocol } from './pluginIconProtocol'
@@ -54,6 +55,7 @@ export const definedPlugins: LauncherAppPlugin[] = [
   pluginAgentDocuments,
   pluginAgentProtocol,
   pluginCommandHost({ services: definedServices }),
+  pluginForkPreset,
   pluginCli,
   pluginAutoUpdate,
   pluginPowerMonitor,
