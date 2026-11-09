@@ -1,0 +1,2 @@
+# Generated test modpack; CI publishes artifacts instead of committing binary ZIPs.
+/dist/
