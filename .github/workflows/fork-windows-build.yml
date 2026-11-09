@@ -118,6 +118,49 @@ jobs:
           $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
           $out = "deskgap-app/build/output/release/xmcl-deskgap-$version-win32-x64.exe"
           if (-not (Test-Path $out)) { throw 'Missing DeskGap single EXE' }
+      - name: Create portable ZIP and unsigned candidate manifest
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $output = 'fork/release-candidate'
+          New-Item -ItemType Directory -Path $output -Force | Out-Null
+          Compress-Archive -Path 'xmcl-electron-app/build/output/win-unpacked/*' -DestinationPath "$output/xmcl-$version-electron-win64-portable.zip" -CompressionLevel Optimal -Force
+          Copy-Item "deskgap-app/build/output/release/xmcl-deskgap-$version-win32-x64.exe" "$output/xmcl-deskgap-$version-win32-x64.exe"
+          node scripts/fork/create-release-manifest.mjs "$output"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Push-Location $output
+          try {
+            $lines = Get-Content SHA256SUMS
+            foreach ($line in $lines) {
+              if ($line -notmatch '^([a-f0-9]{64})\s{2}(.+)        uses: actions/upload-artifact@v6
+        with:
+          name: p0-02-electron-win64-unsigned
+          path: xmcl-electron-app/build/output/win-unpacked/
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload DeskGap preview
+        uses: actions/upload-artifact@v6
+        with:
+          name: p0-02-deskgap-win64-unsigned-preview
+          path: deskgap-app/build/output/release/*.exe
+          if-no-files-found: error
+          retention-days: 7
+) { throw 'Invalid SHA256SUMS row' }
+              $expected = $Matches[1]
+              $name = $Matches[2]
+              if ((Get-FileHash $name -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expected) {
+                throw "Artifact SHA256 mismatch: $name"
+              }
+            }
+          } finally { Pop-Location }
+      - name: Upload unsigned Windows release candidate
+        uses: actions/upload-artifact@v6
+        with:
+          name: p0-08-windows-unsigned-candidate
+          path: fork/release-candidate/
+          if-no-files-found: error
+          retention-days: 7
       - name: Upload Electron portable application
         uses: actions/upload-artifact@v6
         with:
