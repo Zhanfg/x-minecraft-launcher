@@ -40,7 +40,7 @@ def validate_archive(path):
             if info.filename in seen:
                 raise ValueError(f"Duplicate ZIP entry: {info.filename}")
             seen.add(info.filename)
-            if ((info.external_attr >> 16) & stat.S_IFMT) == stat.S_IFLNK:
+            if stat.S_IFMT(info.external_attr >> 16) == stat.S_IFLNK:
                 raise ValueError(f"Symlink ZIP entry forbidden: {info.filename}")
             if info.flag_bits & 1:
                 raise ValueError("Encrypted ZIP entry is not permitted")
