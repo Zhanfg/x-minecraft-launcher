@@ -1,0 +1,39 @@
+name: Fork P0 security audit
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/fork-security.yml'
+      - 'scripts/fork/**'
+      - 'fork/modpack/**'
+      - 'fork/config/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Verify fork guardrails and upstream ancestry
+        run: node scripts/fork/check-baseline.mjs
+      - name: Test malicious archive rejection
+        run: python -m unittest discover -s scripts/fork -p 'test_audit_*.py' -v
+      - name: Build original smoke pack
+        run: python scripts/fork/build-smoke-pack.py
+      - name: Audit generated pack without extracting it
+        shell: bash
+        run: |
+          python scripts/fork/audit_artifact.py fork/modpack/fixture/dist/*.mrpack
+          (cd fork/modpack/fixture/dist && sha256sum -c SHA256SUMS)
