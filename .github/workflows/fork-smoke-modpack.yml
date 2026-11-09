@@ -1,0 +1,36 @@
+name: Fork P0 Fabric smoke pack
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/fork-smoke-modpack.yml'
+      - 'fork/modpack/fixture/**'
+      - 'scripts/fork/build-smoke-pack.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fixture:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Validate Modrinth pack and side-specific overrides
+        run: python scripts/fork/build-smoke-pack.py --check
+      - name: Build redistributable P0 smoke mrpack
+        run: python scripts/fork/build-smoke-pack.py
+      - name: Verify generated artifact checksums
+        shell: bash
+        run: (cd fork/modpack/fixture/dist && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v6
+        with:
+          name: p0-04-fabric-smoke-mrpack
+          path: fork/modpack/fixture/dist/
+          if-no-files-found: error
+          retention-days: 7
