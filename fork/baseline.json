@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "upstream": "Voxelum/x-minecraft-launcher",
+  "upstreamCommit": "4aee50aaf1cb7ee741ba995c87017f4dbe85584e",
+  "upstreamBranch": "master",
+  "fork": "Zhanfg/x-minecraft-launcher",
+  "initialVersion": "0.73.1",
+  "baselineDate": "2026-11-09",
+  "hostTargets": [
+    "electron-win32-x64",
+    "deskgap-win32-x64"
+  ],
+  "policy": {
+    "keepMasterSyncable": true,
+    "preferIsolatedFeatureBranches": true,
+    "androidOutOfScope": true
+  }
+}

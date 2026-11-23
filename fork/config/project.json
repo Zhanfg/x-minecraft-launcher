@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "brand": {
+    "displayName": "Custom Minecraft Launcher",
+    "productId": "",
+    "iconPath": null
+  },
+  "modpack": {
+    "manifestUrl": null,
+    "instanceId": null,
+    "minecraftVersion": null,
+    "fabricLoaderVersion": null
+  },
+  "server": {
+    "displayName": null,
+    "address": null,
+    "autoConnect": false
+  },
+  "distribution": {
+    "channel": "development",
+    "updateFeedUrl": null,
+    "allowUnsignedPreview": false
+  },
+  "guardrails": {
+    "requireMicrosoftAuthentication": true,
+    "preservePlayerFiles": true,
+    "modifySharedMinecraftDirectory": false
+  }
+}
