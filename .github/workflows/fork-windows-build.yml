@@ -1,0 +1,134 @@
+name: Fork P0 Windows dual-host build
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/fork-windows-build.yml'
+      - 'xmcl-electron-app/**'
+      - 'deskgap-app/**'
+      - 'xmcl-keystone-ui/**'
+      - 'xmcl-runtime/**'
+      - 'xmcl-runtime-api/**'
+      - 'packages/**'
+      - 'pnpm-lock.yaml'
+      - 'package.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fork-windows-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dual-host:
+    name: Windows x64 Electron + DeskGap (unsigned)
+    runs-on: windows-2025
+    timeout-minutes: 90
+    env:
+      ELECTRON_CACHE: ${{ github.workspace }}/.cache/electron
+      ELECTRON_BUILDER_CACHE: ${{ github.workspace }}/.cache/electron-builder
+      NODE_ENV: production
+      NODE_OPTIONS: --max-old-space-size=8192
+    steps:
+      - name: Checkout fork without persisted credentials
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: pnpm
+      - name: Cache Electron runtime
+        uses: actions/cache@v5
+        with:
+          path: |
+            ${{ github.workspace }}/.cache/electron
+            ${{ github.workspace }}/.cache/electron-builder
+          key: windows-fork-electron-${{ hashFiles('pnpm-lock.yaml') }}
+      - name: Prepare native build dependencies
+        run: python3 -m pip install --user packaging setuptools
+      - name: Install exact workspace dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build shared renderer
+        run: pnpm --prefix=xmcl-keystone-ui build
+      - name: Build Electron x64 portable application
+        run: pnpm --prefix=xmcl-electron-app build
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}
+      - name: Verify Electron output
+        shell: pwsh
+        run: |
+          $folder = 'xmcl-electron-app/build/output/win-unpacked'
+          if (-not (Test-Path "$folder/XMCL.exe")) { throw 'Missing Electron Windows x64 XMCL.exe' }
+          if (-not (Test-Path "$folder/resources/app.asar")) { throw 'Missing Electron application ASAR' }
+          if ((Get-Item "$folder/XMCL.exe").Length -lt 1MB) { throw 'Unexpectedly small Electron executable' }
+      - name: Read pinned DeskGap version
+        shell: pwsh
+        id: deskgap
+        run: |
+          $version = (Get-Content deskgap-app/package.json -Raw | ConvertFrom-Json).config.deskgapVersion
+          if ($version -notmatch '^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$') { throw 'DeskGap version must be pinned' }
+          "version=$version" >> $env:GITHUB_OUTPUT
+      - name: Checkout pinned DeskGap packaging scripts
+        uses: actions/checkout@v5
+        with:
+          repository: Voxelum/DeskGap
+          ref: v${{ steps.deskgap.outputs.version }}
+          path: deskgap-runtime-source
+          persist-credentials: false
+      - name: Use Node.js 24 for DeskGap packaging
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Install pinned DeskGap packaging dependencies
+        working-directory: deskgap-runtime-source
+        run: npm ci
+      - name: Fetch and verify pinned DeskGap native runtime
+        shell: pwsh
+        env:
+          DESKGAP_VERSION: ${{ steps.deskgap.outputs.version }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $name = "deskgap-v$env:DESKGAP_VERSION-win32-x64.zip"
+          $base = "https://github.com/Voxelum/DeskGap/releases/download/v$env:DESKGAP_VERSION"
+          $directory = 'deskgap-app/build/runtime'
+          New-Item -ItemType Directory -Force $directory | Out-Null
+          Invoke-WebRequest "$base/SHA256SUMS" -OutFile "$directory/SHA256SUMS"
+          $pattern = '^([a-fA-F0-9]{64})\s+\*?' + [regex]::Escape($name) + '$'
+          $entries = @(Get-Content "$directory/SHA256SUMS" | Where-Object { $_ -match $pattern })
+          if ($entries.Count -ne 1) { throw "Expected one pinned runtime SHA256 for $name" }
+          $expected = [regex]::Match($entries[0], $pattern).Groups[1].Value
+          Invoke-WebRequest "$base/$name" -OutFile "$directory/$name"
+          if ((Get-FileHash "$directory/$name" -Algorithm SHA256).Hash -ne $expected) { throw 'DeskGap runtime SHA256 mismatch' }
+          Expand-Archive "$directory/$name" "$directory/extracted"
+      - name: Build DeskGap Windows x64 single EXE
+        shell: pwsh
+        env:
+          DESKGAP_VERSION: ${{ steps.deskgap.outputs.version }}
+        run: |
+          $source = Join-Path $env:GITHUB_WORKSPACE 'deskgap-runtime-source'
+          $extracted = Join-Path $env:GITHUB_WORKSPACE 'deskgap-app/build/runtime/extracted'
+          $runtime = Join-Path $extracted 'DeskGap'
+          $bootstrap = Join-Path $extracted "DeskGapBootstrap-v$env:DESKGAP_VERSION-win32-x64.exe"
+          pnpm --prefix=deskgap-app package "$source" "$runtime" "$bootstrap"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $out = "deskgap-app/build/output/release/xmcl-deskgap-$version-win32-x64.exe"
+          if (-not (Test-Path $out)) { throw 'Missing DeskGap single EXE' }
+      - name: Upload Electron portable application
+        uses: actions/upload-artifact@v6
+        with:
+          name: p0-02-electron-win64-unsigned
+          path: xmcl-electron-app/build/output/win-unpacked/
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload DeskGap preview
+        uses: actions/upload-artifact@v6
+        with:
+          name: p0-02-deskgap-win64-unsigned-preview
+          path: deskgap-app/build/output/release/*.exe
+          if-no-files-found: error
+          retention-days: 7
